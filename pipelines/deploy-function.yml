@@ -1,0 +1,60 @@
+# Pipeline for publishing the gate Function itself. Keep this separate from
+# application pipelines that consume the gate.
+parameters:
+- name: azureServiceConnection
+  displayName: Azure Resource Manager service connection
+  type: string
+  default: CHANGEME-AZURE-SERVICE-CONNECTION
+- name: resourceGroupName
+  displayName: Function resource group
+  type: string
+  default: CHANGEME-RESOURCE-GROUP
+- name: functionAppName
+  displayName: Function App name
+  type: string
+  default: CHANGEME-FUNCTION-APP
+
+trigger: none
+pr: none
+
+stages:
+- stage: Deploy
+  displayName: Publish the Function
+  jobs:
+  - job: ZipDeploy
+    pool:
+      vmImage: windows-latest
+    steps:
+    - checkout: self
+    - task: PowerShell@2
+      displayName: Create Function deployment package
+      inputs:
+        pwsh: true
+        targetType: inline
+        script: |
+          $ErrorActionPreference = 'Stop'
+          $source = '$(Build.SourcesDirectory)/function'
+          $package = '$(Build.ArtifactStagingDirectory)/greenops-function.zip'
+
+          # The archive root must contain host.json; do not zip the containing
+          # "function" directory itself.
+          Compress-Archive `
+            -Path "$source/host.json", "$source/profile.ps1", "$source/requirements.psd1", "$source/GreenOpsGate", "$source/data" `
+            -DestinationPath $package `
+            -Force
+    - task: AzureCLI@2
+      displayName: ZIP deploy Function App
+      inputs:
+        azureSubscription: ${{ parameters.azureServiceConnection }}
+        scriptType: pscore
+        scriptLocation: inlineScript
+        inlineScript: |
+          $ErrorActionPreference = 'Stop'
+          az functionapp deployment source config-zip `
+            --resource-group '${{ parameters.resourceGroupName }}' `
+            --name '${{ parameters.functionAppName }}' `
+            --src '$(Build.ArtifactStagingDirectory)/greenops-function.zip'
+
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Function ZIP deployment failed.'
+          }

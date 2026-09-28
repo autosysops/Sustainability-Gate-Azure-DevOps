@@ -1,0 +1,13 @@
+{
+  "description": "EU Azure regions mapped to ENTSO-E bidding-zone EIC codes, adapted from autosysops/UseAgenticWorkflowForSustainability.",
+  "source": "https://www.entsoe.eu/data/energy-identification-codes-eic/eic-area-codes-map/",
+  "regions": [
+    { "azureRegion": "westeurope", "displayName": "West Europe (Netherlands)", "eicCode": "10YNL----------L", "country": "Netherlands" },
+    { "azureRegion": "northeurope", "displayName": "North Europe (Ireland)", "eicCode": "10Y1001A1001A59C", "country": "Ireland" },
+    { "azureRegion": "swedencentral", "displayName": "Sweden Central", "eicCode": "10Y1001A1001A46L", "country": "Sweden" },
+    { "azureRegion": "francecentral", "displayName": "France Central", "eicCode": "10YFR-RTE------C", "country": "France" },
+    { "azureRegion": "germanywestcentral", "displayName": "Germany West Central", "eicCode": "10Y1001A1001A82H", "country": "Germany" },
+    { "azureRegion": "uksouth", "displayName": "UK South", "eicCode": "10YGB----------A", "country": "United Kingdom" },
+    { "azureRegion": "polandcentral", "displayName": "Poland Central", "eicCode": "10YPL-AREA-----S", "country": "Poland" }
+  ]
+}

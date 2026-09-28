@@ -1,0 +1,87 @@
+# Consumer pipeline example. It demonstrates how an application pipeline is
+# paused by the GreenOps check attached to the "greenops" environment.
+# Replace the three CHANGEME values before running this pipeline.
+parameters:
+- name: category
+  displayName: Deployment category
+  type: string
+  default: test
+  values:
+  - hotfix
+  - test
+  - production
+
+# The sample is manual by default so a fork cannot deploy unexpectedly.
+trigger: none
+pr: none
+
+variables:
+- name: AzureServiceConnection
+  value: CHANGEME-AZURE-SERVICE-CONNECTION
+- name: GreenOpsStorageAccountName
+  value: CHANGEMESTORAGE
+- name: GreenOpsTableName
+  value: GreenOpsDecisions
+- name: DeploymentCategory
+  value: ${{ parameters.category }}
+
+# Keep policy values in YAML so they are reviewed with the application code.
+# The Azure DevOps Environment check reads these variables for its request body.
+- ${{ if eq(parameters.category, 'hotfix') }}:
+  - name: PreferredLocation
+    value: westeurope
+  - name: AllowedLocations
+    value: westeurope,northeurope
+  - name: AllowedWaitMinutes
+    value: '0'
+- ${{ if eq(parameters.category, 'test') }}:
+  - name: PreferredLocation
+    value: westeurope
+  - name: AllowedLocations
+    value: westeurope,northeurope,swedencentral
+  - name: AllowedWaitMinutes
+    value: '1'
+- ${{ if eq(parameters.category, 'production') }}:
+  - name: PreferredLocation
+    value: westeurope
+  - name: AllowedLocations
+    value: westeurope,northeurope,swedencentral
+  - name: AllowedWaitMinutes
+    value: '10'
+
+stages:
+# Checks are configured on the environment in Azure DevOps, outside this YAML.
+# Azure DevOps evaluates them before starting this deployment job.
+- stage: Deploy
+  displayName: GreenOps-approved deployment
+  jobs:
+  - deployment: DeployApplication
+    displayName: Deploy after approval
+    environment: greenops
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+          - task: AzureCLI@2
+            displayName: Read approved GreenOps decision
+            inputs:
+              azureSubscription: $(AzureServiceConnection)
+              scriptType: pscore
+              scriptLocation: scriptPath
+              scriptPath: scripts/Show-GreenOpsDecision.ps1
+              visibleAzLogin: false
+            env:
+              GREENOPS_CATEGORY: $(DeploymentCategory)
+              GREENOPS_STORAGE_ACCOUNT_NAME: $(GreenOpsStorageAccountName)
+              GREENOPS_TABLE_NAME: $(GreenOpsTableName)
+          - task: PowerShell@2
+            displayName: Application deployment placeholder
+            inputs:
+              pwsh: true
+              targetType: inline
+              script: |
+                # Replace this step with the deployment for your application.
+                # Show-GreenOpsDecision.ps1 makes SelectedLocation available to
+                # every later task in this job.
+                Write-Host "Deploy the application to $(SelectedLocation)."

@@ -1,0 +1,10 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "powershell",
+    "GREENOPS_STORAGE_ACCOUNT_NAME": "<storage-account-name>",
+    "GREENOPS_TABLE_NAME": "GreenOpsDecisions",
+    "ENTSOE_TOKEN": "<set-locally-only>"
+  }
+}

@@ -1,0 +1,10 @@
+# Local Azure Functions settings can contain connection strings and tokens.
+function/local.settings.json
+function/.env
+function/.env.local
+function/*.secret.json
+
+# Local test and deployment output.
+TestResults/
+*.trx
+*.zip
