@@ -49,9 +49,9 @@ forecast.
 - An Azure Resource Manager service connection. Workload identity federation is
   recommended instead of a client secret.
 - Azure CLI for the setup commands below.
-- PowerShell 7 with the `Az.Accounts` module, Azure Functions Core Tools 4, and
-  Azurite only when running the Function locally.
-- An ENTSO-E Transparency Platform API token.
+- An ENTSO-E Transparency Platform API token. Follow the official
+  [security-token instructions](https://transparencyplatform.zendesk.com/hc/en-us/articles/12845911031188-How-to-get-security-token);
+  ENTSO-E states that access can take up to three working days to approve.
 
 ## 1. Create the Azure resources
 
@@ -136,10 +136,9 @@ az functionapp config appsettings set `
 Role assignments can take several minutes to become effective. The Function
 uses its managed identity and does not need a storage key.
 
-Request an API token from the ENTSO-E Transparency Platform and add it as the
-`ENTSOE_TOKEN` Function App setting before invoking the gate. Treat it as a
-secret: use the Azure portal configuration page or a Key Vault reference, and
-never commit it.
+Once issued, add the token as the `ENTSOE_TOKEN` Function App setting before
+invoking the gate. Treat it as a secret: use the Azure portal configuration
+page or a Key Vault reference, and never commit it.
 
 ## 2. Deploy the Function
 
@@ -160,7 +159,7 @@ managed dependencies install the pinned major version of `Az.Accounts` from
 `function/requirements.psd1`.
 
 After deployment, retrieve the function key. Treat the returned value as a
-secret and do not add it to YAML or a variable committed to Git.
+secret and do not add it to YAML or commit it to Git.
 
 ```powershell
 az functionapp function keys list `
@@ -171,7 +170,7 @@ az functionapp function keys list `
   --output tsv
 ```
 
-The endpoint is:
+The endpoint without authentication is:
 
 ```text
 https://<function-app-name>.azurewebsites.net/api/GreenOpsGate
@@ -183,12 +182,27 @@ Checks are owned by protected resources in Azure DevOps and are deliberately
 not defined in pipeline YAML. This prevents someone who can edit a pipeline
 from removing its gate.
 
-1. Open **Pipelines > Environments** in the Azure DevOps project.
-2. Create an environment named `greenops`.
-3. Open its **Approvals and checks** tab and add **Invoke Azure Function**.
-4. Set the Azure Function URL to the endpoint above and enter the Function key.
-5. Select `POST` and set the header to `{"Content-Type":"application/json"}`.
-6. Use this request body:
+First create a Generic service connection for the Function:
+
+1. Open **Project settings > Service connections**.
+2. Select **New service connection > Generic**.
+3. Set **Server URL** to
+   `https://<function-app-name>.azurewebsites.net/api/GreenOpsGate?code=<function-key>`.
+4. Leave the username and password empty, name the connection
+   `GreenOpsGateApi`, and save it.
+5. Restrict permission to use and manage this connection. The Function key is
+   part of its URL, so treat the complete connection as a secret and rotate the
+   key if it is exposed.
+
+Then configure the Environment check:
+
+1. Open **Pipelines > Environments** and create an environment named `greenops`.
+2. Open its **Approvals and checks** tab and add **Invoke REST API**.
+3. Select connection type **Generic** and service connection
+   `GreenOpsGateApi`.
+4. Select method `POST`, leave **URL suffix and parameters** empty, and set the
+   header to `{"Content-Type":"application/json"}`.
+5. Use this request body:
 
 ```json
 {
@@ -251,24 +265,6 @@ Change the regions and wait limits to fit your application. Keep the
 `category`, preferred region, allowed regions, and wait limit stable for one
 build: the Function rejects a poll that conflicts with its stored decision.
 
-## Run locally
-
-To run the host, start Azurite, copy the example settings, sign in to Azure so
-`Get-AzAccessToken` can obtain a storage token, and start Functions Core Tools:
-
-```powershell
-Copy-Item ./function/local.settings.example.json ./function/local.settings.json
-Install-Module Az.Accounts -Scope CurrentUser
-Connect-AzAccount
-Set-Location ./function
-func start
-```
-
-Set `GREENOPS_STORAGE_ACCOUNT_NAME`, `GREENOPS_TABLE_NAME`, and `ENTSOE_TOKEN`
-in the local file. Your signed-in identity needs **Storage Table Data
-Contributor**. The `AzureWebJobsStorage` example uses Azurite for the Functions
-host, while gate decisions are written to the configured Azure table.
-
 ## HTTP contract
 
 Send the JSON body shown in **Configure the Azure DevOps gate** as a `POST`
@@ -316,8 +312,8 @@ timestamps, evaluation count, and approval time in Azure Table Storage.
 - No secrets belong in this repository or in pipeline YAML.
 - The Function identity needs **Storage Table Data Contributor**, not account keys.
 - Consumer pipelines need only **Storage Table Data Reader** for gate decisions.
-- Keep Function authentication at `function`; store the key in the protected
-  Environment check configuration.
+- Keep Function authentication at `function`; store its keyed endpoint in the
+  restricted Generic service connection used by the REST API check.
 - Scope Azure roles to the smallest practical resource.
 - Review the Function and forecast-provider limits before making this a mandatory
   production control.
