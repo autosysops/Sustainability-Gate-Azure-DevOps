@@ -1,5 +1,7 @@
 # Sustainability Gate for Azure DevOps
 
+[read more in this blogpost](https://autosysops.com/blog/greenops-approval-gate-in-azure-devops)
+
 This repository is a working example of an Azure DevOps deployment gate that
 can delay a deployment until a better time or Azure region is available. The
 gate is an HTTP-triggered PowerShell Azure Function. An Azure DevOps
